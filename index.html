@@ -323,7 +323,7 @@ const bar=(p)=>`<div class="pb"><div style="width:${Math.min(100,p)}%"></div></d
 const stepper=s=>`<div class="st">${STEP.map((_,i)=>`<span class="${i<=s?'d':''}"></span>`).join('')}</div>`;
 
 const ROLES={cs:'CS Desain',prod:'Produksi',pack:'Serabutan Packing',spv:'SPV / Kepala Toko',admin:'Admin',mem:'Member',mkt:'Marketing / Referral'};
-const TABS={cs:['Order baru','Tracking','Piutang','Laporan harian','Member','Target & bonus','Impor marketplace','Tukar poin','Banner website','Katalog & pricelist','Produk reguler','E-brosur','Panduan'],prod:['Antrian produksi','Kurir','Pengeluaran','Daftar pengeluaran','Produksi selesai','Laporan harian','Panduan'],pack:['Tugas & scan','Panduan'],spv:['Ringkasan','Target toko','Absensi & disiplin','Deadline & rating','Laporan 2 mingguan','Vendor & kurir','Dashboard CS','Dashboard Produksi','Pengguna','Target & bonus marketing','Target & bonus','Panduan'],admin:['Pengaturan','Vendor & kurir','Dashboard CS','Dashboard Produksi','Pengguna','Banner website','Katalog & pricelist','Produk reguler','Target & bonus marketing','Target toko','Absensi & disiplin','Deadline & rating','Laporan 2 mingguan','Penyimpanan','Arsip & restore','Target & bonus tim','Panduan'],mem:['Kartu member'],mkt:['E-brosur & referral','Daftar member','Target & bonus','Banner website','Katalog & pricelist','Tukar poin','Panduan']};
+const TABS={cs:['Order baru','Tracking','Piutang','Laporan harian','Member','Target & bonus','Impor marketplace','Tukar poin','Banner website','Katalog & pricelist','Produk reguler','E-brosur','Panduan'],prod:['Antrian produksi','Kurir','Pengeluaran','Daftar pengeluaran','Produksi selesai','Laporan harian','Panduan'],pack:['Tugas & scan','Panduan'],spv:['Ringkasan','Target toko','Absensi & disiplin','Deadline & rating','Laporan 2 mingguan','Vendor & kurir','Dashboard CS','Dashboard Produksi','Pengguna','Target & bonus marketing','Target & bonus','Panduan'],admin:['Pengaturan','Vendor & kurir','Dashboard CS','Dashboard Produksi','Pengguna','Banner website','Katalog & pricelist','Produk reguler','Target & bonus marketing','Target toko','Absensi & disiplin','Deadline & rating','Laporan 2 mingguan','Penyimpanan','Arsip & restore','Target & bonus tim','Panduan'],mem:['Kartu member'],mkt:['E-brosur & referral','Daftar member','Target & bonus','Panduan']};
 
 function login(r){if(r==='mem'){st.me=null;return enter(r)}st.pick=r;render()}
 function enter(r,uid){st.role=r;st.me=uid||null;st.pick=null;st.tab=0;st.absen=['mem','admin'].includes(r)?'-':null;render()}
@@ -356,7 +356,7 @@ function addOrder(){
  if(mem){const m=st.members.find(x=>x.no===mem);m.poin+=Math.floor(total/1000)}
  toast('Order '+id+' dibuat'+(mem?' + poin member':''));render()
 }
-function share(id){const l='https://connectprinting.id/t/'+id;try{navigator.clipboard.writeText(l)}catch(e){}toast('Link disalin. Ini tampilan yang dilihat pelanggan');st.cust=id;st.tmp={svc:0,res:0,note:''};render()}
+function share(id){const l=location.href.split('#')[0].split('?')[0]+'?t='+encodeURIComponent(id);try{navigator.clipboard.writeText(l).catch(function(){prompt('Salin link ini:',l)})}catch(e){prompt('Salin link ini:',l)}toast('Link pelanggan disalin. Ini tampilan yang mereka lihat');st.cust=id;st.tmp={svc:0,res:0,note:''};render()}
 function adv(id){const o=st.orders.find(x=>x.id===id);if(o.step===1&&!o.spk)return toast('Terbitkan SPK dulu');o.step++;(o.t=o.t||{})[o.step]=stamp();render()}
 function terima(id){const o=st.orders.find(x=>x.id===id);if(v('k_'+id).trim().toUpperCase()!==o.kode)return toast('Kode unik tidak cocok. Barang belum bisa keluar');o.step=4;(o.t=o.t||{})[4]=stamp();toast('Barang diterima pelanggan');render()}
 function selesai(id){const o=st.orders.find(x=>x.id===id);o.step=3;o.selD=tod();(o.t=o.t||{})[3]=stamp();o.kode='K'+Math.floor(1000+Math.random()*9000);const tw=!o.spk||!o.spk.tenggat||tod()<=o.spk.tenggat;o.tepat=tw;if(me())o.prodBy=me().nama;if(tw){st.poinProd+=5;if(me())me().poin=(me().poin||0)+5}toast('Resi & kode unik '+o.kode+' dicetak'+(tw?' (+5 poin tepat waktu)':' (lewat tenggat, tanpa poin)'));st.rc=id;render()}
@@ -379,7 +379,7 @@ function waMsg(o){const c=st.cfg;return c.tpl.replace(/\{nama\}/g,o.cust).replac
 function sendWA(id){const o=st.orders.find(x=>x.id===id);if(!o.wa)return toast('Nomor WhatsApp pelanggan belum diisi');o.waSent=true;const w=window.open('https://wa.me/'+o.wa.replace(/\D/g,'')+'?text='+encodeURIComponent(waMsg(o)),'_blank');if(w)toast('WhatsApp dibuka, tinggal tekan kirim');else{try{navigator.clipboard.writeText(waMsg(o))}catch(e){}toast('Pesan disalin. Buka WhatsApp dan tempel')}render()}
 const stamp=()=>new Date().toLocaleString('id-ID',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}).replace('.',':')+' WIB';
 function ratingSummary2(){const r=st.orders.filter(o=>o.rate);if(!r.length)return `<div class="card"><h2>Kepuasan pelanggan</h2><p class="mu">Belum ada penilaian masuk.</p></div>`;return `<div class="card"><h2>Kepuasan pelanggan</h2><div class="row sp"><span>Rata-rata bintang</span><b>★ ${(r.reduce((s,o)=>s+o.rate.svc,0)/r.length).toFixed(1)}</b></div><div class="mu">${r.length} penilaian lewat link tracking. Ulasan lengkap ada di Google Business.</div></div>`}
-function sendRate2(id){const o=st.orders.find(x=>x.id===id),n=(v('r_note')||'').trim();if(!st.tmp.svc)return toast('Pilih bintang dulu');o.rate={svc:st.tmp.svc,res:st.tmp.svc,note:n};try{if(n)navigator.clipboard.writeText(n)}catch(e){}window.open(st.cfg.rev,'_blank');toast(n?'Komentar disalin. Tempel di halaman review Google':'Terima kasih! Lanjutkan di halaman review Google');render()}
+function sendRate2(id){const o=st.orders.find(x=>x.id===id),n=(v('r_note')||'').trim();if(!st.tmp.svc)return toast('Pilih bintang dulu');o.rate={svc:st.tmp.svc,res:st.tmp.svc,note:n};if(st.pub)pubRate(id,st.tmp.svc,n);try{if(n)navigator.clipboard.writeText(n)}catch(e){}window.open(st.cfg.rev,'_blank');toast(n?'Komentar disalin. Tempel di halaman review Google':'Terima kasih! Lanjutkan di halaman review Google');render()}
 function vCust2(){const o=st.orders.find(x=>x.id===st.cust),t=st.tmp,sisa=o.total-o.paid,tt=i=>(o.t&&o.t[i])||'';
  const kv=(a,b)=>`<div style="display:grid;grid-template-columns:110px 1fr;padding:3px 0"><span>${a}</span><span>: ${b}</span></div>`;
  const stars=[1,2,3,4,5].map(i=>`<button class="star" aria-label="${i} bintang" onclick="setStar('svc',${i})" style="font-size:32px">${i<=t.svc?'★':'☆'}</button>`).join('');
@@ -387,7 +387,7 @@ function vCust2(){const o=st.orders.find(x=>x.id===st.cust),t=st.tmp,sisa=o.tota
  let rate='';
  if(o.step>=REV_STEP)rate=o.rate?`<div class="card" style="border:2px solid var(--c);text-align:center"><b>Terima kasih atas penilaian Anda ${'★'.repeat(o.rate.svc)}</b><p class="mu">Satu langkah lagi: tulis ulasan Anda di Google agar tampil di profil toko kami.</p><a href="${esc(st.cfg.rev)}" target="_blank" rel="noopener" style="${lnk}">Buka halaman review Google</a></div>`
  :`<div class="card" style="border:2px solid var(--c);text-align:center"><b style="color:var(--c)">Apakah anda puas dengan layanan kami?</b><div>${stars}</div><div class="row"><input id="r_note" placeholder="Tulis disini" value="${esc(t.note||'')}" style="flex:1"><button onclick="sendRate2('${o.id}')">Kirim</button></div></div>`;
- return head()+`<div class="row sp"><span class="tag">Pratinjau tampilan pelanggan</span><button class="g" onclick="st.cust=null;st.rcpt=false;render()">Kembali</button></div>
+ return head()+`${st.pub?'':`<div class="row sp"><span class="tag">Pratinjau tampilan pelanggan</span><button class="g" onclick="st.cust=null;st.rcpt=false;render()">Kembali</button></div>`}
 <div style="text-align:center;margin:14px 0"><h1 style="margin:0">Connect Printing</h1><div class="mu">hello.connectprinting@gmail.com<br>0895-3363-97958</div></div>
 <hr style="border:0;border-top:2px dashed var(--bd)">${kv('Tgl Order',tt(0)||'-')}${kv('Receipt No.','INV/'+o.id)}${kv('Nama',esc(o.cust))}${kv('CS',esc(o.by||'CS Desain'))}
 <hr style="border:0;border-top:2px dashed var(--bd)">
@@ -629,7 +629,7 @@ function render(){
   const r=st.role,tb=TABS[r];let body;
   if(r==='cs')body=[()=>csHadiah()+csOrder()+st.orders.slice(0,2).map(o=>orderCard(o,'view')).join(''),csTrack,csPiutang,csLaporan,csMember,csTarget,csImport,csTukar,bannerV,katV,csProd,broCard,panduanV][st.tab]();
   if(r==='prod')body=[prodQueue2,prodKurir2,prodExp,prodExpList,prodDone,prodLap,panduanV][st.tab]();if(r==='pack')body=st.tab===1?panduanV():prodPack();
-  if(r==='spv')body=[()=>tkAlert()+spv(),tkTarget,tkAbsen,tkDead,tkLap,spvKurir,dashCS,dashProd,usersV,targetMkt,bonusV,panduanV][st.tab]();if(r==='admin')body=[adminV,spvKurir,dashCS,dashProd,usersV,bannerV,katV,csProd,targetMkt,tkTarget,tkAbsen,tkDead,tkLap,bkV,arcV,bonusV,panduanV][st.tab]();if(r==='mem')body=mem2();if(r==='mkt')body=[mktV,mktMember,mktBon,bannerV,katV,csTukar,panduanV][st.tab]();
+  if(r==='spv')body=[()=>tkAlert()+spv(),tkTarget,tkAbsen,tkDead,tkLap,spvKurir,dashCS,dashProd,usersV,targetMkt,bonusV,panduanV][st.tab]();if(r==='admin')body=[adminV,spvKurir,dashCS,dashProd,usersV,bannerV,katV,csProd,targetMkt,tkTarget,tkAbsen,tkDead,tkLap,bkV,arcV,bonusV,panduanV][st.tab]();if(r==='mem')body=mem2();if(r==='mkt')body=[mktV,mktMember,mktBon,panduanV][st.tab]();
   h=head()+`<div class="row sp"><div><h1>${ROLES[r]}</h1><div class="mu">${me()?esc(me().nama)+' · ':''}${['mem','admin'].includes(r)?(r==='admin'?'Pemilik, tanpa absen':'Akun pelanggan, tanpa absen'):'Absen '+st.absen}</div></div><div class="row">${pulangBtn()}${pinBtn()}<button class="g" onclick="out()">Ganti peran</button></div></div>`+
    (tb.length>1?`<div class="tabs"><span class="tn l" onclick="tabNav(-1)">‹</span>${tb.map((n,i)=>`<button class="${i===st.tab?'on':''}" onclick="tab(${i})">${n}</button>`).join('')}<span class="tn r" onclick="tabNav(1)">›</span></div>`:'')+body;
  }
@@ -1325,6 +1325,23 @@ render();
 function showDash(){document.body.className='dash';window.scrollTo(0,0);if(!syncStarted){syncStarted=true;startSync()}}
 function showSite(){document.body.className='site';window.scrollTo(0,0);bnLoad();if(window.ktLoad)ktLoad()}
 let syncStarted=false;
+/* Link pelanggan: ?t=NOMOR-ORDER membuka status order tanpa login staf */
+function pubMsg(t){$('app').innerHTML=head()+'<div class="card" style="text-align:center"><h2>Connect Printing</h2><p class="mu">'+esc(t)+'</p></div>'}
+function pubShow(o){st.orders=[o];st.cust=o.id;st.tmp={svc:0,res:0,note:''};st.rcpt=false;render()}
+function pubStart(id){
+ document.body.className='dash';st.pub=true;
+ var g=$('gate');if(g)g.style.display='none';
+ var s=$('syncs');if(s&&s.parentNode)s.parentNode.style.display='none';
+ pubMsg('Memuat status pesanan…');
+ pubFetch(id).then(function(j){
+  if(j&&j.found&&j.order)pubShow(j.order);
+  else pubMsg(j&&j.error==='terlalu_banyak'?'Terlalu banyak percobaan. Coba lagi sebentar lagi.':'Pesanan '+id+' tidak ditemukan. Hubungi CS kami.')
+ }).catch(function(){pubMsg('Gagal memuat. Periksa koneksi lalu muat ulang halaman.')})}
+function pubId(x){return String(x||'').toUpperCase().replace(/\s+/g,'').slice(0,30)}
+function pubFetch(id){if(!CP_API_URL)return Promise.resolve(st.orders.some(function(x){return x.id===id})?{found:true,order:st.orders.find(function(x){return x.id===id})}:{found:false});return fetch(CP_API_URL+'?action=track&q='+encodeURIComponent(id)).then(function(r){return r.json()})}
+function pubRate(id,svc,note){try{if(CP_API_URL)fetch(CP_API_URL,{method:'POST',body:JSON.stringify({action:'rate',id:id,svc:svc,note:note})}).catch(function(){})}catch(e){}}
+(function(){var id='';try{id=pubId(new URLSearchParams(location.search).get('t'))}catch(e){}if(id)pubStart(id)})();
+
 if(location.hash==='#staf')showDash();
 function startSync(){
 const API=window.CP_API_URL||'',KEYS=['orders','members','exp','users','rewards','reqs','mp','vendors','tasks','kpi','banners','katalog','katset','prods','absensi'],NAMES=KEYS.concat(['poinProd','baseOmset','baseKlien','cfg']);
