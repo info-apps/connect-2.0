@@ -356,7 +356,8 @@ function addOrder(){
  if(mem){const m=st.members.find(x=>x.no===mem);m.poin+=Math.floor(total/1000)}
  toast('Order '+id+' dibuat'+(mem?' + poin member':''));render()
 }
-function share(id){const l=location.href.split('#')[0].split('?')[0]+'?t='+encodeURIComponent(id);try{navigator.clipboard.writeText(l).catch(function(){prompt('Salin link ini:',l)})}catch(e){prompt('Salin link ini:',l)}toast('Link pelanggan disalin. Ini tampilan yang mereka lihat');st.cust=id;st.tmp={svc:0,res:0,note:''};render()}
+function newTok(){const a=new Uint8Array(10),C='ABCDEFGHJKMNPQRSTUVWXYZ23456789';crypto.getRandomValues(a);return Array.from(a,x=>C[x%C.length]).join('')}
+function share(id){const o0=st.orders.find(x=>x.id===id);if(!o0)return;if(!o0.tok)o0.tok=newTok();const l=location.href.split('#')[0].split('?')[0]+'?t='+encodeURIComponent(o0.tok);try{navigator.clipboard.writeText(l).catch(function(){prompt('Salin link ini:',l)})}catch(e){prompt('Salin link ini:',l)}toast('Link pelanggan disalin. Ini tampilan yang mereka lihat');st.cust=id;st.tmp={svc:0,res:0,note:''};render()}
 function adv(id){const o=st.orders.find(x=>x.id===id);if(o.step===1&&!o.spk)return toast('Terbitkan SPK dulu');o.step++;(o.t=o.t||{})[o.step]=stamp();render()}
 function terima(id){const o=st.orders.find(x=>x.id===id);if(v('k_'+id).trim().toUpperCase()!==o.kode)return toast('Kode unik tidak cocok. Barang belum bisa keluar');o.step=4;(o.t=o.t||{})[4]=stamp();toast('Barang diterima pelanggan');render()}
 function selesai(id){const o=st.orders.find(x=>x.id===id);o.step=3;o.selD=tod();(o.t=o.t||{})[3]=stamp();o.kode='K'+Math.floor(1000+Math.random()*9000);const tw=!o.spk||!o.spk.tenggat||tod()<=o.spk.tenggat;o.tepat=tw;if(me())o.prodBy=me().nama;if(tw){st.poinProd+=5;if(me())me().poin=(me().poin||0)+5}toast('Resi & kode unik '+o.kode+' dicetak'+(tw?' (+5 poin tepat waktu)':' (lewat tenggat, tanpa poin)'));st.rc=id;render()}
@@ -627,7 +628,7 @@ function render(){
  let h;
  if(st.spkp)h=vSpkP();else if(st.spkOf)h=vSpkF();else if(st.trm)h=vTrm();else if(st.rc)h=vRcpt();else if(st.cust)h=vCust2();else if(st.chg)h=vChg();else if(st.pu)h=vPin();else if(st.pick)h=vPick();else if(!st.role)h=vLogin();else if(!st.absen)h=vAbsen();else{
   const r=st.role,tb=TABS[r];let body;
-  if(r==='cs')body=[()=>csHadiah()+csOrder()+st.orders.slice(0,2).map(o=>orderCard(o,'view')).join(''),csTrack,csPiutang,csLaporan,csMember,csTarget,csImport,csTukar,bannerV,katV,csProd,broCard,panduanV][st.tab]();
+  if(r==='cs')body=[()=>csHadiah()+csOrder()+st.orders.filter(o=>(Number(o.step)||0)<1).slice(0,2).map(o=>orderCard(o,'view')).join(''),csTrack,csPiutang,csLaporan,csMember,csTarget,csImport,csTukar,bannerV,katV,csProd,broCard,panduanV][st.tab]();
   if(r==='prod')body=[prodQueue2,prodKurir2,prodExp,prodExpList,prodDone,prodLap,panduanV][st.tab]();if(r==='pack')body=st.tab===1?panduanV():prodPack();
   if(r==='spv')body=[()=>tkAlert()+spv(),tkTarget,tkAbsen,tkDead,tkLap,spvKurir,dashCS,dashProd,usersV,targetMkt,bonusV,panduanV][st.tab]();if(r==='admin')body=[adminV,spvKurir,dashCS,dashProd,usersV,bannerV,katV,csProd,targetMkt,tkTarget,tkAbsen,tkDead,tkLap,bkV,arcV,bonusV,panduanV][st.tab]();if(r==='mem')body=mem2();if(r==='mkt')body=[mktV,mktMember,mktBon,panduanV][st.tab]();
   h=head()+`<div class="row sp"><div><h1>${ROLES[r]}</h1><div class="mu">${me()?esc(me().nama)+' · ':''}${['mem','admin'].includes(r)?(r==='admin'?'Pemilik, tanpa absen':'Akun pelanggan, tanpa absen'):'Absen '+st.absen}</div></div><div class="row">${pulangBtn()}${pinBtn()}<button class="g" onclick="out()">Ganti peran</button></div></div>`+
@@ -800,16 +801,19 @@ function saveMktRule(){const k=+v('tm_gk'),m=+v('tm_gm');if(!(k>=0&&k<=100)||!(m
 /* ===== Menu panduan: tautan pedoman/SOP diisi Admin, bisa dibuka semua akun staf ===== */
 const PD_DEF=['Pedoman cetak','SOP CS Desain','Peraturan perusahaan','Manual book'];
 function pdList(){return Array.isArray(st.cfg.panduan)?st.cfg.panduan:[]}
+const PD_ROLES=[['cs','CS'],['prod','Produksi'],['pack','Packing'],['spv','Supervisor'],['mkt','Marketing']];
+function pdSee(x){const r=x&&x.r;return st.role==='admin'||!Array.isArray(r)||!r.length||r.indexOf(st.role)>=0}
+function pdTag(x){const r=Array.isArray(x.r)?x.r:[];return r.length?r.map(k=>{const f=PD_ROLES.find(p=>p[0]===k);return f?f[1]:k}).join(', '):'Semua peran'}
 function pdOkUrl(u){return /^https?:\/\/\S+$/i.test(u)}
-function pdRows(){if(!st.pdRows)st.pdRows=pdList().length?pdList().map(x=>({k:x.k,u:x.u})):PD_DEF.map(k=>({k:k,u:''}));return st.pdRows}
-function pdGrab(){pdRows().forEach((r,i)=>{const a=$('pd_k'+i),b=$('pd_u'+i);if(a)r.k=a.value;if(b)r.u=b.value})}
-function pdAdd(){pdGrab();pdRows().push({k:'',u:''});render()}
+function pdRows(){if(!st.pdRows)st.pdRows=pdList().length?pdList().map(x=>({k:x.k,u:x.u,r:Array.isArray(x.r)?x.r.slice():[]})):PD_DEF.map(k=>({k:k,u:'',r:[]}));return st.pdRows}
+function pdGrab(){pdRows().forEach((r,i)=>{const a=$('pd_k'+i),b=$('pd_u'+i);if(a)r.k=a.value;if(b)r.u=b.value;if(a){r.r=PD_ROLES.filter(p=>{const c=$('pd_r'+i+'_'+p[0]);return c&&c.checked}).map(p=>p[0])}})}
+function pdAdd(){pdGrab();pdRows().push({k:'',u:'',r:[]});render()}
 function pdDel(i){pdGrab();pdRows().splice(i,1);render()}
-function pdSave(){pdGrab();const out=[];for(const r of pdRows()){const k=r.k.trim(),u=r.u.trim();if(!k&&!u)continue;if(!k)return toast('Isi keterangan untuk setiap tautan');if(u&&!pdOkUrl(u))return toast('Tautan "'+k+'" harus diawali http:// atau https://');out.push({k:k,u:u})}st.cfg={...st.cfg,panduan:out};st.pdRows=null;toast('Panduan disimpan, langsung tampil di semua akun');render()}
-function panduanV(){const L=pdList(),A=st.role==='admin';
- const view=`<div class="card"><h2>Menu panduan</h2><p class="mu">Pedoman, SOP, dan dokumen perusahaan. Ketuk Buka untuk membuka tautannya.</p>${L.length?L.map(x=>`<div class="row sp" style="padding:8px 0;border-top:1px solid var(--bd)"><b>${esc(x.k)}</b>${x.u&&pdOkUrl(x.u)?`<a class="tag" target="_blank" rel="noopener noreferrer" href="${esc(x.u)}">Buka</a>`:'<span class="mu">Belum ada tautan</span>'}</div>`).join(''):'<p class="mu">Belum ada panduan. Admin mengisinya di menu ini.</p>'}</div>`;
+function pdSave(){pdGrab();const out=[];for(const r of pdRows()){const k=r.k.trim(),u=r.u.trim();if(!k&&!u)continue;if(!k)return toast('Isi keterangan untuk setiap tautan');if(u&&!pdOkUrl(u))return toast('Tautan "'+k+'" harus diawali http:// atau https://');const o={k:k,u:u};if(Array.isArray(r.r)&&r.r.length)o.r=r.r.slice();out.push(o)}st.cfg={...st.cfg,panduan:out};st.pdRows=null;toast('Panduan disimpan, tiap peran hanya melihat tautan miliknya');render()}
+function panduanV(){const L=pdList().filter(pdSee),A=st.role==='admin';
+ const view=`<div class="card"><h2>Menu panduan</h2><p class="mu">Pedoman, SOP, dan dokumen perusahaan. Ketuk Buka untuk membuka tautannya.</p>${L.length?L.map(x=>`<div class="row sp" style="padding:8px 0;border-top:1px solid var(--bd)"><div><b>${esc(x.k)}</b>${A?`<div class="mu" style="font-size:12px">Tampil untuk: ${esc(pdTag(x))}</div>`:''}</div>${x.u&&pdOkUrl(x.u)?`<a class="tag" target="_blank" rel="noopener noreferrer" href="${esc(x.u)}">Buka</a>`:'<span class="mu">Belum ada tautan</span>'}</div>`).join(''):'<p class="mu">Belum ada panduan untuk peran Anda.</p>'}</div>`;
  if(!A)return view;
- return view+`<div class="card"><h2>Kelola panduan (Admin)</h2><p class="mu">Isi keterangan dan tautan (awali dengan https://). Tautan bisa ke Google Drive, PDF, atau halaman lain, dan langsung tampil di menu panduan semua akun staf. Pastikan akses file Drive diatur agar bisa dibuka karyawan.</p>${pdRows().map((r,i)=>`<div style="padding:8px 0;border-top:1px solid var(--bd)"><label class="mu">Keterangan</label><input id="pd_k${i}" value="${esc(r.k)}" placeholder="Contoh: SOP CS Desain"><label class="mu">Tautan</label><input id="pd_u${i}" type="url" inputmode="url" value="${esc(r.u)}" placeholder="https://..."><button class="g" onclick="pdDel(${i})">Hapus baris</button></div>`).join('')}<div class="row" style="margin-top:8px"><button class="g" onclick="pdAdd()">Tambah baris</button><button onclick="pdSave()">Simpan panduan</button></div></div>`}
+ return view+`<div class="card"><h2>Kelola panduan (Admin)</h2><p class="mu">Isi keterangan dan tautan (awali dengan https://). Pilih peran yang boleh melihat tiap tautan; bila tidak ada yang dicentang, tautan tampil untuk semua peran. Admin selalu melihat semuanya. Pastikan akses file Drive diatur agar bisa dibuka karyawan.</p>${pdRows().map((r,i)=>`<div style="padding:8px 0;border-top:1px solid var(--bd)"><label class="mu">Keterangan</label><input id="pd_k${i}" value="${esc(r.k)}" placeholder="Contoh: SOP CS Desain"><label class="mu">Tautan</label><input id="pd_u${i}" type="url" inputmode="url" value="${esc(r.u)}" placeholder="https://..."><label class="mu">Tampil untuk (kosong = semua peran)</label><div class="row" style="flex-wrap:wrap;gap:6px 14px;margin:4px 0 8px">${PD_ROLES.map(p=>`<label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="pd_r${i}_${p[0]}" style="width:auto;margin:0"${(r.r||[]).indexOf(p[0])>=0?' checked':''}>${p[1]}</label>`).join('')}</div><button class="g" onclick="pdDel(${i})">Hapus baris</button></div>`).join('')}<div class="row" style="margin-top:8px"><button class="g" onclick="pdAdd()">Tambah baris</button><button onclick="pdSave()">Simpan panduan</button></div></div>`}
 
 /* ===== Contoh produk katalog (gambar ilustrasi, keterangan, harga) + tombol isi / hapus contoh ===== */
 function sampleSvg(k,c){
@@ -1122,8 +1126,23 @@ function doPulang(){let a=absRec();if(!a.r){logMasuk();a=absRec()}
   if(d>C.rad)return toast('Absen pulang ditolak: '+Math.round(d)+' m dari toko (maksimal '+C.rad+' m)');
   pulangNow()},e=>toast(e.code===1?'Izin lokasi ditolak':'Lokasi tidak terbaca'),{enableHighAccuracy:true,timeout:15000,maximumAge:0})}
 function pulangBtn(){if(!st.role||!st.absen||['mem','admin'].includes(st.role))return '';const r=absRec().r;return r&&r.pulang?`<span class="tag">Pulang ${esc(r.pulang)}</span>`:`<button class="g" onclick="doPulang()">Absen pulang</button>`}
+const HK_N=['Min','Sen','Sel','Rab','Kam','Jum','Sab'],HK_F=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+function hkList(){const x=st.cfg.hariKerja;return Array.isArray(x)&&x.length?x.map(Number):[1,2,3,4,5,6]}
+function lbList(){return Array.isArray(st.cfg.libur)?st.cfg.libur:[]}
+function isKerja(d){if(!d)return true;const w=new Date(d+'T00:00:00').getDay();return hkList().indexOf(w)>=0&&!lbList().some(x=>x.d===d)}
+function lbNama(d){const f=lbList().find(x=>x.d===d);return f?f.k:''}
+function hkCount(a,b){const e=b<tod()?b:tod();let n=0;for(let d=a;d<=e;d=addD(d,1))if(isKerja(d))n++;return n}
+function hkTxt(){return [1,2,3,4,5,6,0].filter(i=>hkList().indexOf(i)>=0).map(i=>HK_F[i]).join(', ')}
+function lbMonth(ym){const L=lbList().filter(x=>String(x.d).slice(0,7)===ym);return L.length?`<p style="margin-top:8px">Hari libur: ${L.map(x=>tglId(x.d)+' ('+esc(x.k)+')').join('; ')}.</p>`:'<p style="margin-top:8px">Tidak ada hari libur terdaftar bulan ini.</p>'}
+function lbRows(){if(!st.lbRows)st.lbRows=lbList().map(x=>({d:x.d,k:x.k}));return st.lbRows}
+function lbGrab(){lbRows().forEach((r,i)=>{const a=$('lb_d'+i),b=$('lb_k'+i);if(a)r.d=a.value;if(b)r.k=b.value});if($('hk_1'))st.hkSel=[1,2,3,4,5,6,0].filter(i=>{const e=$('hk_'+i);return e&&e.checked})}
+function lbAdd(){lbGrab();lbRows().push({d:'',k:''});render()}
+function lbDel(i){lbGrab();lbRows().splice(i,1);render()}
+function hkSave(){lbGrab();const hk=st.hkSel||hkList();if(!hk.length)return toast('Pilih minimal satu hari kerja');const out=[];for(const r of lbRows()){const d=String(r.d||'').trim(),k=String(r.k||'').trim();if(!d&&!k)continue;if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return toast('Isi tanggal untuk setiap hari libur');if(out.some(x=>x.d===d))continue;out.push({d:d,k:k||'Libur'})}
+ out.sort((x,y)=>x.d<y.d?-1:1);st.cfg={...st.cfg,hariKerja:hk,libur:out};st.lbRows=null;st.hkSel=null;toast('Hari kerja dan hari libur disimpan');render()}
+function hkCard(){const sel=st.hkSel||hkList();return `<div class="card"><h2>Hari kerja & hari libur</h2><p class="mu">Dipakai untuk menghitung "Tidak hadir" di daftar dan cetak absensi. Hari yang tidak dicentang dan tanggal libur tidak dihitung sebagai tidak hadir.</p><label class="mu">Hari kerja</label><div class="row" style="flex-wrap:wrap;gap:6px 14px;margin:4px 0 8px">${[1,2,3,4,5,6,0].map(i=>`<label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="hk_${i}" style="width:auto;margin:0"${sel.indexOf(i)>=0?' checked':''}>${HK_N[i]}</label>`).join('')}</div><label class="mu">Hari libur (libur nasional, cuti bersama, libur toko)</label>${lbRows().map((r,i)=>`<div style="padding:8px 0;border-top:1px solid var(--bd)"><input id="lb_d${i}" type="date" value="${esc(r.d)}"><input id="lb_k${i}" value="${esc(r.k)}" placeholder="Keterangan, contoh: Hari Natal"><button class="g" onclick="lbDel(${i})">Hapus</button></div>`).join('')}<div class="row" style="margin-top:8px"><button class="g" onclick="lbAdd()">Tambah libur</button><button onclick="hkSave()">Simpan</button></div></div>`}
 function absSt(r,d){const jm=mnt(tg('jamMasuk')),jp=mnt(tg('jamPulang'));
- if(!r)return {l:[tagS('Tidak hadir','var(--m)')],ok:false,late:0,noOut:false,early:false,hadir:false};
+ if(!r)return {l:[isKerja(d)?tagS('Tidak hadir','var(--m)'):tagS(lbNama(d)||'Libur','var(--bd)')],ok:false,late:0,noOut:false,early:false,hadir:false};
  const m=mnt(r.masuk),late=m!==null&&m>jm?m-jm:0,early=!!r.pulang&&mnt(r.pulang)!==null&&mnt(r.pulang)<jp,noOut=!r.pulang&&d<tod(),l=[];
  l.push(late?tagS('Terlambat '+late+' mnt','var(--y)'):tagS('Tepat waktu','var(--ok)'));
  if(!r.pulang)l.push(d===tod()?'<span class="tag">Belum pulang</span>':tagS('Tanpa absen pulang','var(--m)'));else if(early)l.push(tagS('Pulang awal','var(--y)'));
@@ -1170,17 +1189,29 @@ function tkKin(u,a,b){const os=st.orders.filter(o=>o.by===u.nama&&inR(o.d,a,b));
  if(u.role==='prod')return [tile('Order diselesaikan',st.orders.filter(o=>o.prodBy===u.nama).length),tile('Tugas kurir',st.tasks.filter(t=>t.by===u.nama).length)];
  if(u.role==='pack')return [tile('Paket dipacking',packTasks().filter(t=>t.o.packBy===u.nama).length)];
  return []}
-function tkAbsen(){const t=tod(),d=st.ad||t,a=addD(t,-13),us=st.users.filter(u=>STAFF.includes(u.role)&&u.aktif),
+function absTxt(r){const s=absSt(r,r.d);return (isKerja(r.d)?'':'Hari libur · ')+(s.late?'Terlambat '+s.late+' mnt':'Tepat waktu')+(!r.pulang?(r.d===tod()?', belum pulang':', tanpa absen pulang'):(s.early?', pulang awal':''))}
+function absBulan(){const ym=st.am||tod().slice(0,7),a=ym+'-01',b=ym+'-31',sel=st.amU||'',
+ us=st.users.filter(u=>STAFF.includes(u.role)&&(u.aktif||st.absensi.some(x=>x.uid===u.id&&inR(x.d,a,b)))).filter(u=>!sel||String(u.id)===String(sel));
+ return us.map(u=>{const h=st.absensi.filter(x=>x.uid===u.id&&inR(x.d,a,b)).sort((x,y)=>x.d<y.d?-1:1),hs=h.map(x=>absSt(x,x.d));return {u,h,hs,hd:h.length,tdk:Math.max(0,hkCount(a,b)-h.filter(y=>isKerja(y.d)).length),tl:hs.filter(x=>x.late).length,mn:sum(hs,x=>x.late),np:hs.filter(x=>x.noOut).length,ea:hs.filter(x=>x.early).length}})}
+function absBulanV(){const ym=st.am||tod().slice(0,7),L=absBulan(),ttl='Bulan '+BLN[+ym.slice(5)-1]+' '+ym.slice(0,4);
+ return `<div class="row sp np" style="margin-top:10px"><button class="g" onclick="st.amOn=false;render()">Kembali</button><button onclick="window.print()">Cetak / simpan PDF</button></div>
+<div class="lstp"><div style="text-align:center"><b style="font-size:16px">CONNECT PRINTING</b><br><b>REKAP ABSENSI KARYAWAN</b><br>${ttl}</div>
+<p style="margin:6px 0">Hari kerja: ${hkTxt()}. Hari kerja bulan ini sampai hari ini: ${hkCount(ym+'-01',ym+'-31')} hari.</p>
+${L.length?`<div class="lw"><table><thead><tr><th>Nama</th><th>Peran</th><th class="r">Hadir</th><th class="r">Tidak hadir</th><th class="r">Terlambat</th><th class="r">Total telat (mnt)</th><th class="r">Tanpa absen pulang</th><th class="r">Pulang awal</th></tr></thead><tbody>${L.map(x=>`<tr><td>${esc(x.u.nama)}</td><td>${ROLES[x.u.role]||''}</td><td class="r">${x.hd}</td><td class="r">${x.tdk}</td><td class="r">${x.tl}</td><td class="r">${x.mn}</td><td class="r">${x.np}</td><td class="r">${x.ea}</td></tr>`).join('')}</tbody></table></div>
+${L.map(x=>`<div style="margin-top:14px;page-break-inside:avoid"><b>${esc(x.u.nama)}</b> · ${ROLES[x.u.role]||''}${x.h.length?`<div class="lw"><table><thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Keterangan</th></tr></thead><tbody>${x.h.map(y=>`<tr><td>${tglId(y.d)}</td><td>${esc(y.masuk||'-')}</td><td>${y.pulang?esc(y.pulang):'-'}</td><td>${absTxt(y)}</td></tr>`).join('')}</tbody></table></div>`:'<div>Tidak ada catatan absensi bulan ini.</div>'}</div>`).join('')}`:'<p>Tidak ada data karyawan.</p>'}
+${lbMonth(ym)}<p style="margin-top:12px">Jam kerja: masuk ${esc(tg('jamMasuk'))}, pulang ${esc(tg('jamPulang'))}. Dicetak ${tglId(tod())}.</p></div>`}
+function tkAbsen(){if(st.amOn)return absBulanV();const t=tod(),d=st.ad||t,a=addD(t,-13),us=st.users.filter(u=>STAFF.includes(u.role)&&u.aktif),
  rows=us.map(u=>{const r=st.absensi.find(x=>x.uid===u.id&&x.d===d),s=absSt(r,d),h=st.absensi.filter(x=>x.uid===u.id&&inR(x.d,a,t)).sort((x,y)=>y.d<x.d?-1:1),hs=h.map(x=>absSt(x,x.d)),ok=hs.filter(x=>x.ok).length;return {u,r,s,h,hs,ok}}),
  hadir=rows.filter(x=>x.r).length,telat=rows.filter(x=>x.s.late).length,belum=rows.filter(x=>x.r&&!x.r.pulang).length;
- return `<div class="card"><h2>Daftar absensi karyawan</h2><p class="mu">Jam kerja: masuk ${esc(tg('jamMasuk'))}, pulang ${esc(tg('jamPulang'))} (ubah di tab Target toko).</p>
+ return `<div class="card"><h2>Cetak absensi per bulan</h2><label class="mu">Bulan</label><input type="month" value="${st.am||t.slice(0,7)}" max="${t.slice(0,7)}" onchange="st.am=this.value||null;render()"><label class="mu">Karyawan</label><select onchange="st.amU=this.value;render()"><option value="">Semua karyawan</option>${us.map(u=>`<option value="${esc(u.id)}"${String(st.amU)===String(u.id)?' selected':''}>${esc(u.nama)} (${ROLES[u.role]})</option>`).join('')}</select><div class="row" style="margin-top:8px"><button onclick="st.amOn=true;render();window.scrollTo(0,0)">Lihat & cetak</button></div></div>
+<div class="card"><h2>Daftar absensi karyawan</h2><p class="mu">Jam kerja: masuk ${esc(tg('jamMasuk'))}, pulang ${esc(tg('jamPulang'))} (ubah di tab Target toko). Hari kerja: ${hkTxt()}.</p>
 <label class="mu">Tanggal</label><input id="ab_d" type="date" value="${d}" max="${t}" onchange="st.ad=this.value||null;render()">
-${grid([tile('Hadir',hadir+' / '+us.length),tile('Terlambat',telat),tile('Belum pulang',belum,d===t?'Hari ini':'Tidak absen pulang'),tile('Tidak hadir',us.length-hadir)])}</div>
+${grid([tile('Hadir',hadir+' / '+us.length),tile('Terlambat',telat),tile('Belum pulang',belum,d===t?'Hari ini':'Tidak absen pulang'),tile('Tidak hadir',isKerja(d)?us.length-hadir:0,isKerja(d)?'':(lbNama(d)||'Bukan hari kerja'))])}</div>
 <div class="card"><h2>Masuk & pulang, ${tglId(d)}</h2>${us.length?rows.map(x=>`<div style="padding:8px 0;border-top:1px solid var(--bd)"><div class="row sp"><b>${esc(x.u.nama)}</b><span class="mu">${ROLES[x.u.role]}</span></div><div class="row sp"><span class="mu">Masuk <b>${x.r?esc(x.r.masuk):'-'}</b> · Pulang <b>${x.r&&x.r.pulang?esc(x.r.pulang):'-'}</b></span><span class="row" style="gap:4px">${x.s.l.join('')}</span></div></div>`).join(''):'<p class="mu">Belum ada karyawan aktif.</p>'}</div>
 <h2>Kinerja & disiplin 14 hari terakhir</h2>${rows.map(x=>{const hd=x.h.length,pc=hd?Math.round(x.ok/hd*100):null,tl=x.hs.filter(y=>y.late).length,np=x.hs.filter(y=>y.noOut).length;
  return `<div class="card"><div class="row sp"><b>${esc(x.u.nama)}</b>${tagS(pc===null?'Belum ada absen':'Disiplin '+pc+'%',pc===null?'var(--bd)':pc>=90?'var(--ok)':pc>=70?'var(--y)':'var(--m)')}</div><div class="mu">${ROLES[x.u.role]}</div>
 ${grid([tile('Hari hadir',hd),tile('Terlambat',tl,'kali'),tile('Tanpa absen pulang',np,'kali')].concat(tkKin(x.u,a,t)))}
-${hd?`<details style="margin-top:8px"><summary class="mu" style="cursor:pointer">Riwayat absensi</summary>${x.h.map((y,i)=>`<div class="row sp" style="padding:4px 0"><span class="mu">${tglId(y.d)} · ${esc(y.masuk)} – ${y.pulang?esc(y.pulang):'-'}</span><span class="row" style="gap:4px">${x.hs[i].l.join('')}</span></div>`).join('')}</details>`:''}</div>`}).join('')}`}
+${hd?`<details style="margin-top:8px"><summary class="mu" style="cursor:pointer">Riwayat absensi</summary>${x.h.map((y,i)=>`<div class="row sp" style="padding:4px 0"><span class="mu">${tglId(y.d)} · ${esc(y.masuk)} – ${y.pulang?esc(y.pulang):'-'}</span><span class="row" style="gap:4px">${x.hs[i].l.join('')}</span></div>`).join('')}</details>`:''}</div>`}).join('')}${hkCard()}`}
 
 /* ----- Tab: Deadline & rating pelayanan ----- */
 function tkOrd(o,tag){return `<div class="row sp" style="padding:6px 0;border-top:1px solid var(--bd)"><span>${esc(o.id)} · ${esc(o.cust)}<div class="mu">${esc(o.item||'')} · CS ${esc(o.by||'-')} · ${STEP[o.step]||''}</div></span>${tag}</div>`}
@@ -1244,7 +1275,7 @@ document.addEventListener('input',numFmt);
 /* ===== CS Desain: pembaruan sesuai catatan ===== */
 const REV_STEP=1; /* link review pelanggan dibuka mulai tahap ini: 0 Ternota, 1 Proses desain, 2 Antrian produksi, 3 Selesai */
 const cfgN=(k,d)=>{const x=st.cfg[k];return x===undefined||x===null||x===''||isNaN(+x)?d:+x};
-const bonOrderPct=()=>cfgN('bonus',0.7),tokoA=()=>cfgN('tokoA',80000000),tokoB=()=>cfgN('tokoB',150000000);
+const bonOrderPct=()=>cfgN('bonus',0.7),tokoA=()=>Math.max(1,cfgN('tokoA',0)||+tg('tOm')||0),tokoB=()=>cfgN('tokoB',0);
 const jt=n=>{n=+n||0;return n>=1e6?'Rp'+(n/1e6).toLocaleString('id-ID',{maximumFractionDigits:1})+' jt':R(n)};
 const pctTxt=n=>String(+n).replace('.',',');
 const telQ=q=>/^[\d\s+()\-]+$/.test(q)?q.replace(/\D/g,''):''; /* pencarian WA hanya bila kata kunci berupa nomor */
@@ -1306,15 +1337,15 @@ function csBon(u){const B=tkBulan(),os=B.os.filter(o=>o.by===u.nama),om=sum(os,o
  return {B,om,kl,masuk,tO,tK,hitO,hitK,bO,bK,bOr,rate,tot:bO+bK+bOr}}
 function csRuleCard(){const f=(id,l,x)=>`<label class="mu">${l}</label><input id="${id}" type="text" data-num="1" inputmode="decimal" value="${nf(x)}">`;
  return `<div class="card"><h2>Aturan bonus CS & target toko</h2><p class="mu">Dipakai di menu Target &amp; bonus milik CS Desain. Target omset dan target klien tiap CS diisi di kartu "Target dan bonus CS Desain" di atas.</p>${f('cr_p','Bonus order (% dari total uang masuk)',bonOrderPct())}${f('cr_a','Target omset toko tahap 1 (Rp)',tokoA())}${f('cr_b','Target omset toko tahap 2 / tertinggi (Rp)',tokoB())}<p class="mu">Bonus order hanya dihitung selama target omset CS belum tercapai. Begitu target omset tercapai, bonus order tetap Rp0.</p><button style="margin-top:8px" onclick="saveCsRule()">Simpan aturan</button></div>`}
-function saveCsRule(){const p=+v('cr_p'),a=+v('cr_a'),b=+v('cr_b');if(!(p>=0&&p<=100)||!(a>0)||!(b>a))return toast('Isi persen 0 sampai 100, target tahap 1 lebih dari 0, dan tahap 2 lebih besar dari tahap 1');st.cfg={...st.cfg,bonus:p,tokoA:a,tokoB:b};toast('Aturan bonus CS dan target toko disimpan');render()}
+function saveCsRule(){const p=+v('cr_p'),a=+v('cr_a'),b=+v('cr_b');if(!(p>=0&&p<=100)||!(a>0)||(b&&!(b>a)))return toast('Isi persen 0 sampai 100, target tahap 1 lebih dari 0, dan tahap 2 (boleh kosong) lebih besar dari tahap 1');st.cfg={...st.cfg,bonus:p,tokoA:a,tokoB:b||''};toast('Aturan bonus CS dan target toko disimpan');render()}
 
 /* 10. Target omset toko: bar dengan penanda tahap 1 dan tahap 2 */
-function tokoBar(){const B=tkBulan(),A=tokoA(),Z=Math.max(tokoB(),A+1),om=B.om,pf=Math.min(100,om/Z*100),pa=A/Z*100,
- ket=om>=Z?'Target tertinggi '+jt(Z)+' tercapai':om>=A?'Target '+jt(A)+' tercapai. Lanjut ke '+jt(Z)+', sisa '+R(Z-om):'Sisa '+R(A-om)+' lagi untuk mencapai '+jt(A);
+function tokoBar(){const B=tkBulan(),A=tokoA(),two=tokoB()>A,Z=two?tokoB():A,om=B.om,pf=Math.min(100,om/Z*100),pa=two?A/Z*100:100,
+ ket=!two?(om>=A?'Target '+jt(A)+' tercapai':'Sisa '+R(A-om)+' lagi untuk mencapai '+jt(A)):om>=Z?'Target tertinggi '+jt(Z)+' tercapai':om>=A?'Target '+jt(A)+' tercapai. Lanjut ke '+jt(Z)+', sisa '+R(Z-om):'Sisa '+R(A-om)+' lagi untuk mencapai '+jt(A);
  return `<div class="card"><h2>Target omset toko</h2><p class="mu" style="margin:2px 0 12px">Bulan ${BLN[+B.ym.slice(5)-1]} ${B.ym.slice(0,4)} · omset semua order bulan ini</p>
 <div style="position:relative;margin:0 0 34px"><div style="position:relative;height:16px;border-radius:99px;overflow:hidden;background:linear-gradient(90deg,rgba(0,150,199,.2) ${pa}%,rgba(214,51,108,.2) ${pa}%)"><div style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(pf,pa)}%;background:#0096c7"></div>${om>A?`<div style="position:absolute;left:${pa}%;top:0;bottom:0;width:${pf-pa}%;background:#d6336c"></div>`:''}</div>
-<div style="position:absolute;left:${pa}%;top:-5px;height:26px;width:3px;margin-left:-1px;background:var(--tx);border-radius:2px"></div>
-<div style="position:absolute;left:0;top:24px;font-size:12px" class="mu">Rp0</div><div style="position:absolute;left:${pa}%;top:24px;transform:translateX(-50%);font-size:12px;font-weight:700;white-space:nowrap">${jt(A)}</div><div style="position:absolute;right:0;top:24px;font-size:12px;font-weight:700;white-space:nowrap">${jt(Z)}</div></div>
+${two?`<div style="position:absolute;left:${pa}%;top:-5px;height:26px;width:3px;margin-left:-1px;background:var(--tx);border-radius:2px"></div>`:''}
+<div style="position:absolute;left:0;top:24px;font-size:12px" class="mu">Rp0</div>${two?`<div style="position:absolute;left:${pa}%;top:24px;transform:translateX(-50%);font-size:12px;font-weight:700;white-space:nowrap">${jt(A)}</div>`:''}<div style="position:absolute;right:0;top:24px;font-size:12px;font-weight:700;white-space:nowrap">${jt(Z)}</div></div>
 <div class="row sp"><span>Omset toko bulan ini</span><b>${R(om)}</b></div><div class="mu" style="margin-top:4px">${ket}</div></div>`}
 
 /* 11. Pencarian Tracking: tambah member */
@@ -1329,7 +1360,7 @@ let syncStarted=false;
 function pubMsg(t){$('app').innerHTML=head()+'<div class="card" style="text-align:center"><h2>Connect Printing</h2><p class="mu">'+esc(t)+'</p></div>'}
 function pubShow(o){st.orders=[o];st.cust=o.id;st.tmp={svc:0,res:0,note:''};st.rcpt=false;render()}
 function pubStart(id){
- document.body.className='dash';st.pub=true;
+ document.body.className='dash';st.pub=true;st.pubTok=id;
  var g=$('gate');if(g)g.style.display='none';
  var s=$('syncs');if(s&&s.parentNode)s.parentNode.style.display='none';
  pubMsg('Memuat status pesanan…');
@@ -1338,11 +1369,11 @@ function pubStart(id){
   else pubMsg(j&&j.error==='terlalu_banyak'?'Terlalu banyak percobaan. Coba lagi sebentar lagi.':'Pesanan '+id+' tidak ditemukan. Hubungi CS kami.')
  }).catch(function(){pubMsg('Gagal memuat. Periksa koneksi lalu muat ulang halaman.')})}
 function pubId(x){return String(x||'').toUpperCase().replace(/\s+/g,'').slice(0,30)}
-function pubFetch(id){if(!CP_API_URL)return Promise.resolve(st.orders.some(function(x){return x.id===id})?{found:true,order:st.orders.find(function(x){return x.id===id})}:{found:false});return fetch(CP_API_URL+'?action=track&q='+encodeURIComponent(id)).then(function(r){return r.json()})}
-function pubRate(id,svc,note){try{if(CP_API_URL)fetch(CP_API_URL,{method:'POST',body:JSON.stringify({action:'rate',id:id,svc:svc,note:note})}).catch(function(){})}catch(e){}}
+function pubFetch(id){if(!CP_API_URL)return Promise.resolve(st.orders.some(function(x){return x.tok===id})?{found:true,order:st.orders.find(function(x){return x.tok===id})}:{found:false});return fetch(CP_API_URL+'?action=track&q='+encodeURIComponent(id)).then(function(r){return r.json()})}
+function pubRate(id,svc,note){try{if(CP_API_URL)fetch(CP_API_URL,{method:'POST',body:JSON.stringify({action:'rate',id:st.pubTok,svc:svc,note:note})}).catch(function(){})}catch(e){}}
 (function(){var id='';try{id=pubId(new URLSearchParams(location.search).get('t'))}catch(e){}if(id)pubStart(id)})();
 
-if(location.hash==='#staf')showDash();
+if(location.hash==='#staf'||/[?&]staf(=|&|$)/.test(location.search))showDash();
 function startSync(){
 const API=window.CP_API_URL||'',KEYS=['orders','members','exp','users','rewards','reqs','mp','vendors','tasks','kpi','banners','katalog','katset','prods','absensi'],NAMES=KEYS.concat(['poinProd','baseOmset','baseKlien','cfg']);
 const C=v=>JSON.stringify(v,(k,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.keys(x).sort().reduce((a,y)=>(a[y]=x[y],a),{}):x);
