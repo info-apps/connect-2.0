@@ -390,8 +390,19 @@ function bdAuto(){const y=tod().slice(0,4),p=bdPoin();bdToday().forEach(m=>{if(S
 function bdUp(){const L=[];for(let k=1;k<=7;k++){const d=new Date();d.setDate(d.getDate()+k);const md=String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');(st.members||[]).forEach(m=>{if(m.lahir&&bdMD(m)===md)L.push({m,k})})}return L}
 function bdMsg(m){const t=st.cfg.tplUlt||BDT_DEF;return t.replace(/\{nama\}/g,m.nama).replace(/\{poin\}/g,m.ulP!=null?m.ulP:bdPoin()).replace(/\{total\}/g,m.poin)}
 function bdWA(no){const m=st.members.find(x=>x.no===no);if(!m)return;const n=shopWa(m.wa);if(!n)return toast('Nomor WhatsApp member belum diisi atau tidak valid');m.ulWa=tod();const w=window.open('https:/\x2fwa.me/'+n+'?text='+encodeURIComponent(bdMsg(m)),'_blank');if(w)toast('WhatsApp dibuka, tinggal tekan kirim');else{try{navigator.clipboard.writeText(bdMsg(m))}catch(e){}toast('Pesan disalin. Buka WhatsApp dan tempel')}render()}
+let bdOpen=false;
+function bdTog(){bdOpen=!bdOpen;render()}
 function bdCard(){const L=bdToday(),U=bdUp();if(!L.length&&!U.length)return '';
- return (L.length?`<div class="card" style="border-color:var(--m)"><h2>🎂 Ulang tahun member hari ini</h2><p class="mu">Poin ulang tahun sudah otomatis masuk ke member. Tekan tombol untuk mengirim ucapan lewat WhatsApp.</p>${L.map(m=>`<div class="row sp" style="padding:6px 0;border-top:1px solid var(--bd)"><div><b>${esc(m.nama)}</b><div class="mu">${esc(m.no)} · +${m.ulP||0} poin · total ${m.poin} poin</div></div><div class="row">${m.ulWa===tod()?'<span class="tag">Terkirim</span>':''}<button onclick="bdWA('${esc(m.no)}')">${m.ulWa===tod()?'Kirim ulang':'Kirim WhatsApp'}</button></div></div>`).join('')}</div>`:'')+(U.length?`<div class="card mu">Ulang tahun 7 hari ke depan: ${U.map(x=>esc(x.m.nama)+' ('+(x.k===1?'besok':'H-'+x.k)+')').join(', ')}</div>`:'')}
+ const td=tod(),todo=L.filter(m=>m.ulWa!==td).length,arrow=bdOpen?'▲':'▼';
+ const st1=L.length?(todo?`<span class="tag">${todo} belum dikirim</span>`:'<span class="tag">Semua terkirim ✓</span>'):`<span class="mu">${U.length} dalam 7 hari</span>`;
+ let h=`<div class="card" style="padding:10px 14px"><div class="row sp" style="cursor:pointer;align-items:center" onclick="bdTog()"><b>🎂 ${L.length?L.length+' member ulang tahun hari ini':'Ulang tahun member segera'}</b><span class="row" style="gap:8px">${st1}<span class="mu">${arrow}</span></span></div>`;
+ if(bdOpen){
+  const S=L.slice().sort((a,b)=>(a.ulWa===td)-(b.ulWa===td));
+  h+=`<div style="max-height:45vh;overflow-y:auto;margin-top:8px">`;
+  if(S.length)h+=`<p class="mu" style="margin:0 0 4px">Poin ulang tahun sudah otomatis masuk. Tekan tombol untuk mengirim ucapan lewat WhatsApp.</p>`+S.map(m=>`<div class="row sp" style="padding:6px 0;border-top:1px solid var(--bd);align-items:center"><div style="min-width:0"><b>${esc(m.nama)}</b><div class="mu">${esc(m.no)} · +${m.ulP||0} poin · total ${m.poin}</div></div><button style="padding:8px 12px;white-space:nowrap;${m.ulWa===td?'opacity:.6':''}" onclick="bdWA('${esc(m.no)}')">${m.ulWa===td?'✓ Kirim ulang':'Kirim WhatsApp'}</button></div>`).join('');
+  if(U.length)h+=`<div class="mu" style="padding:8px 0 2px;border-top:1px solid var(--bd);margin-top:4px">7 hari ke depan: ${U.map(x=>esc(x.m.nama)+' ('+(x.k===1?'besok':'H-'+x.k)+')').join(', ')}</div>`;
+  h+='</div>'}
+ return h+'</div>'}
 function waMsg(o){const c=st.cfg;return c.tpl.replace(/\{nama\}/g,o.cust).replace(/\{review\}/g,c.rev).replace(/\{instagram\}/g,c.ig)}
 function sendWA(id){const o=st.orders.find(x=>x.id===id);if(!o.wa)return toast('Nomor WhatsApp pelanggan belum diisi');o.waSent=true;const w=window.open('https://wa.me/'+o.wa.replace(/\D/g,'')+'?text='+encodeURIComponent(waMsg(o)),'_blank');if(w)toast('WhatsApp dibuka, tinggal tekan kirim');else{try{navigator.clipboard.writeText(waMsg(o))}catch(e){}toast('Pesan disalin. Buka WhatsApp dan tempel')}render()}
 const stamp=()=>new Date().toLocaleString('id-ID',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}).replace('.',':')+' WIB';
@@ -1388,9 +1399,37 @@ function vTrm(){const o=st.orders.find(x=>x.id===st.trm);if(!o){st.trm=null;setT
 
 /* 4. Search di Daftar piutang */
 function piuQ(o,q){const d=telQ(q);return !q||[o.id,o.cust,o.item].some(x=>String(x||'').toLowerCase().includes(q))||(o.items||[]).some(c=>String(c.nama||'').toLowerCase().includes(q))||(d.length>=3&&String(o.wa||'').replace(/\D/g,'').includes(d))}
-function piuList(){const q=(st.plq||'').trim().toLowerCase(),l=st.orders.filter(o=>o.total-o.paid>0.004&&piuQ(o,q));
- return l.map(o=>`<div class="card"><div class="row sp"><b>${o.id} · ${esc(o.cust)}</b><b style="color:var(--m)">${R(o.total-o.paid)}</b></div><div class="mu">${esc(o.item)} · total ${R(o.total)} · dibayar ${R(o.paid)}</div><div class="row" style="margin-top:6px;flex-wrap:nowrap"><input id="pl_${o.id}" type="text" inputmode="decimal" data-num="1" placeholder="Nominal bayar (Rp)" style="flex:1;margin:0"><button onclick="bayar('${o.id}')">Catat</button><button class="g" onclick="$('pl_${o.id}').value=nf(${+(o.total-o.paid).toFixed(2)})">Lunas</button></div></div>`).join('')||`<div class="card"><p class="mu">${q?'Tidak ada piutang yang cocok dengan pencarian.':'Tidak ada piutang.'}</p></div>`}
-function piuSearch(){return `<div class="card"><input id="piu_q" placeholder="🔍 Cari piutang: no. nota / nama / WA / produk" value="${esc(st.plq||'')}" oninput="st.plq=this.value;$('piu_list').innerHTML=piuList()" autocomplete="off" style="margin:0"></div>`}
+/* Piutang ringkas: baris ketuk-untuk-buka, urut/filter, tampilkan bertahap, kelompok per pelanggan */
+const PIU={sort:'baru',max:10,open:{},grp:false};
+const piuIso=o=>{const t=oTgl(o).split('-');return t.length===3?t[2]+'-'+t[1]+'-'+t[0]:''};
+const piuNo=o=>+String(o.id).replace(/\D/g,'')||0;
+const piuKey=o=>{const w=shopWa(o.wa);return w?'w'+w:'n'+String(o.cust||'').trim().toLowerCase().replace(/\s+/g,' ')};
+function piuRefresh(){$('piu_list').innerHTML=piuList();const c=$('piu_chips');if(c)c.innerHTML=piuChips()}
+function piuSet(k){PIU.sort=k;PIU.max=10;piuRefresh()}
+function piuGrp(){PIU.grp=!PIU.grp;PIU.max=10;piuRefresh()}
+function piuMore(){PIU.max+=10;piuRefresh()}
+function piuChips(){const c=(on,fn,t)=>`<span class="tag" onclick="${fn}" style="cursor:pointer;padding:7px 13px;font-size:13px;${on?'background:var(--tx);color:var(--bg)':''}">${t}</span>`;
+ return [['baru','Terbaru'],['besar','Terbesar'],['lama','Terlama'],['hari','Hari ini']].map(([k,t])=>c(PIU.sort===k,`piuSet('${k}')`,t)).join('')+c(PIU.grp,'piuGrp()','👥 Per pelanggan')}
+function piuTog(e){const b=e.nextElementSibling,o=b.style.display==='none';b.style.display=o?'':'none';e.querySelector('.pa').textContent=o?'▲':'▼';PIU.open[b.dataset.id]=o}
+function piuRow(o,nested){const op=!!PIU.open[o.id],s=o.total-o.paid;
+ return `<div ${nested?'':'class="card" '}style="${nested?'padding:8px 0;border-top:1px solid var(--bd)':'padding:10px 14px'}"><div class="row sp" onclick="piuTog(this)" style="cursor:pointer;align-items:center;flex-wrap:nowrap;gap:10px"><div style="min-width:0;flex:1"><b>${o.id} · ${nested?oTgl(o):esc(o.cust)}</b><div class="mu" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(o.item)}</div></div><div class="row" style="gap:8px;flex-wrap:nowrap"><b style="color:var(--m);white-space:nowrap">${R(s)}</b><span class="mu pa">${op?'▲':'▼'}</span></div></div><div data-id="${o.id}" style="${op?'':'display:none;'}margin-top:6px"><div class="mu">Tgl ${oTgl(o)} · total ${R(o.total)} · dibayar ${R(o.paid)}</div><div class="row" style="margin-top:6px;flex-wrap:nowrap"><input id="pl_${o.id}" type="text" inputmode="decimal" data-num="1" placeholder="Nominal bayar (Rp)" style="flex:1;margin:0"><button onclick="bayar('${o.id}')">Catat</button><button class="g" onclick="$('pl_${o.id}').value=nf(${+s.toFixed(2)})">Lunas</button></div></div></div>`}
+function piuGroup(g){const id='g:'+g.key,op=!!PIU.open[id];
+ return `<div class="card" style="padding:10px 14px"><div class="row sp" onclick="piuTog(this)" style="cursor:pointer;align-items:center;flex-wrap:nowrap;gap:10px"><div style="min-width:0;flex:1"><b>${esc(g.nm)}</b><div class="mu" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.L.length} nota · ${g.L.map(o=>o.id).join(', ')}</div></div><div class="row" style="gap:8px;flex-wrap:nowrap"><b style="color:var(--m);white-space:nowrap">${R(g.sum)}</b><span class="mu pa">${op?'▲':'▼'}</span></div></div><div data-id="${esc(id)}" style="${op?'':'display:none;'}margin-top:6px">${g.L.map(o=>piuRow(o,true)).join('')}</div></div>`}
+function piuList(){const q=(st.plq||'').trim().toLowerCase(),k=PIU.sort,td=tod(),sisa=o=>o.total-o.paid;
+ let l=st.orders.filter(o=>sisa(o)>0.004&&piuQ(o,q));
+ if(k==='hari')l=l.filter(o=>piuIso(o)===td);
+ const cmp=(a,b)=>piuIso(a)<piuIso(b)?-1:piuIso(a)>piuIso(b)?1:piuNo(a)-piuNo(b);
+ l.sort((a,b)=>k==='besar'?sisa(b)-sisa(a):k==='lama'?cmp(a,b):cmp(b,a));
+ let items,unit='';
+ if(PIU.grp){const G={},ord=[];l.forEach(o=>{const key=piuKey(o);if(!G[key]){G[key]={key,L:[]};ord.push(G[key])}G[key].L.push(o)});
+  ord.forEach(g=>{g.sum=+g.L.reduce((a,o)=>a+sisa(o),0).toFixed(2);const d=g.L.map(piuIso).sort();g.lo=d[0];g.hi=d[d.length-1];g.nm=g.L[0].cust});
+  ord.sort((a,b)=>k==='besar'?b.sum-a.sum:k==='lama'?(a.lo<b.lo?-1:a.lo>b.lo?1:0):(a.hi<b.hi?1:a.hi>b.hi?-1:0));
+  items=ord.map(g=>g.L.length===1?piuRow(g.L[0]):piuGroup(g));unit=' pelanggan'}
+ else items=l.map(o=>piuRow(o));
+ if(!items.length)return `<div class="card"><p class="mu">${q?'Tidak ada piutang yang cocok dengan pencarian.':k==='hari'?'Tidak ada piutang dari order hari ini.':'Tidak ada piutang.'}</p></div>`;
+ const rest=items.length-PIU.max;
+ return items.slice(0,PIU.max).join('')+(rest>0?`<div style="text-align:center;margin:4px 0 10px"><button class="g" onclick="piuMore()">Tampilkan ${Math.min(10,rest)} lagi (sisa ${rest}${unit})</button></div>`:'')}
+function piuSearch(){return `<div class="card"><input id="piu_q" placeholder="🔍 Cari piutang: no. nota / nama / WA / produk" value="${esc(st.plq||'')}" oninput="st.plq=this.value;PIU.max=10;$('piu_list').innerHTML=piuList()" autocomplete="off" style="margin:0"><div id="piu_chips" class="row" style="gap:8px;margin-top:10px">${piuChips()}</div></div>`}
 
 /* 6. Search di Daftar member */
 function memList(){const q=(st.mq||'').trim().toLowerCase(),d=telQ(q),l=st.members.filter(m=>!q||[m.nama,m.no].some(x=>String(x||'').toLowerCase().includes(q))||(d.length>=3&&String(m.wa||'').replace(/\D/g,'').includes(d)));
