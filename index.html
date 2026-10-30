@@ -304,7 +304,7 @@ var CP_API_URL='https://script.google.com/macros/s/AKfycbwz4fdB1jv4iY5g-WEL343wI
 const R=n=>'Rp'+(+n||0).toLocaleString('id-ID',{minimumFractionDigits:0,maximumFractionDigits:2});
 const STEP=['Ternota','Proses desain','Antrian produksi','Selesai','Diterima'];
 const _tod0=(()=>{const x=new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')})();
-const st={role:null,tab:0,absen:null,poinProd:12,banners:[],katalog:[],katset:[],
+const st={role:null,tab:0,absen:null,poinProd:12,banners:[],katalog:[],katset:[],batal:[],
  orders:[
   {id:'CP-001',cust:'Toko Budi',by:'Cucu Galih Erlangga',wa:'6281234567001',item:'Paperbag custom 500 pcs',jenis:'Custom',total:2500000,paid:2000000,step:2,kode:null,mkt:'ARD770',mem:null,d:_tod0},
   {id:'CP-002',cust:'Bu Sari',by:'Rina Marlina',wa:'6281234567002',item:'Undangan 200 pcs',jenis:'Custom',total:1800000,paid:1500000,step:1,kode:null,mkt:'',mem:'CP-M001',d:_tod0},
@@ -606,9 +606,9 @@ function orderCard(o,mode){
   else if(o.step===4)act=`<button onclick="sendWA('${o.id}')">${o.waSent?'Kirim ulang WhatsApp':'Kirim WhatsApp: minta review'}</button>${o.waSent?'<span class="tag">Terkirim</span>':''}<button onclick="openTrm('${o.id}')">Tanda terima${o.trmBy?' ✓':''}</button>`;
  }
  return `<div class="card"><div class="row sp"><b>${o.id} · ${o.cust}</b><span class="tag">${STEP[o.step]}</span></div>
- <div class="mu">${o.item} · ${o.jenis}${o.disc?' · diskon '+R(o.disc):''}${o.dpLow&&o.paid<o.total*st.cfg.dp/100?' · <b style="color:var(--m)">⚠ DP di bawah '+st.cfg.dp+'%</b>':''}</div>${memLine(o)}${rvLine(o)}${o.spk?`<div class="mu">${o.spk.no} · tenggat ${fmtD(o.spk.tenggat)}${o.spk.v>1?' · revisi v'+o.spk.v:''}</div>`:''}${o.rate?`<div class="mu">Dinilai pelanggan: layanan ${'★'.repeat(o.rate.svc)}${o.rate.note?' · “'+esc(o.rate.note)+'”':''}</div>`:''}${stepper(o.step)}
+ <div class="mu">${o.item} · ${o.jenis}${o.disc?' · diskon '+R(o.disc):''}${o.dpLow&&o.paid<o.total*st.cfg.dp/100?' · <b style="color:var(--m)">⚠ DP di bawah '+st.cfg.dp+'%</b>':''}</div>${memLine(o)}${rvLine(o)}${btLine(o)}${o.spk?`<div class="mu">${o.spk.no} · tenggat ${fmtD(o.spk.tenggat)}${o.spk.v>1?' · revisi v'+o.spk.v:''}</div>`:''}${o.rate?`<div class="mu">Dinilai pelanggan: layanan ${'★'.repeat(o.rate.svc)}${o.rate.note?' · “'+esc(o.rate.note)+'”':''}</div>`:''}${stepper(o.step)}
  ${mode==='cs'&&o.step>=4?trmInfo(o):''}<div class="row sp"><span>${R(o.total)}</span><span class="mu">${sisa>0?'Sisa '+R(sisa):'Lunas'}</span></div>
- <div class="row" style="margin-top:8px">${act}${mode==='cs'?`<button class="g" onclick="share('${o.id}')">Bagikan link & pratinjau</button><button class="g" onclick="st.rc='${o.id}';render()">Cetak nota</button>${o.rev&&o.rev.status==='menunggu'?'<span class="tag">Revisi menunggu ACC</span>':`<button class="g" onclick="rvOpen('${o.id}')">Ajukan revisi</button>`}${o.step<3?`<button class="g" onclick="langsung('${o.id}')">Produk ready: langsung Diterima</button>`:''}`:''}</div></div>`}
+ <div class="row" style="margin-top:8px">${act}${mode==='cs'?`<button class="g" onclick="share('${o.id}')">Bagikan link & pratinjau</button><button class="g" onclick="st.rc='${o.id}';render()">Cetak nota</button>${btPend(o)?'<span class="tag">Pembatalan menunggu ACC</span>':(o.rev&&o.rev.status==='menunggu'?'<span class="tag">Revisi menunggu ACC</span>':`<button class="g" onclick="rvOpen('${o.id}')">Ajukan revisi</button>${(+o.step||0)<3?`<button class="g" onclick="btOpen('${o.id}')">Batalkan order</button>`:''}`)}${o.step<3?`<button class="g" onclick="langsung('${o.id}')">Produk ready: langsung Diterima</button>`:''}`:''}</div></div>`}
 
 function csOrder(){return `<div class="card"><h2>Input order</h2>
 <input id="f_cust" placeholder="Nama pelanggan"><input id="f_wa" type="tel" placeholder="No. WhatsApp pelanggan (62812...)"><input id="f_item" placeholder="Produk & jumlah">
@@ -664,10 +664,10 @@ function mkt(){const r=st.orders.filter(o=>o.mkt==='ARD770');const t=r.reduce((a
 
 /* ===== Revisi order: CS mengajukan, SPV (atau Admin) memberi ACC ===== */
 function rvCan(){return st.role==='spv'||st.role==='admin'}
-function rvPend(){return st.orders.filter(o=>o.rev&&o.rev.status==='menunggu').length}
+function rvPend(){return st.orders.filter(o=>(o.rev&&o.rev.status==='menunggu')||(o.bt&&o.bt.status==='menunggu')).length}
 function rvItems(o){if(o.items&&o.items.length)return o.items.map(c=>({...c}));const q=o.qty>0?o.qty:1,s=o.sub||o.total;return [{nama:o.item,sat:'',jenis:o.jenis,uk:o.uk||'',qty:q,h:s/q,note:o.note||'',sub:s}]}
 function rvLine(o){const r=o.rev,n=(o.revLog||[]).filter(l=>l.status==='acc').length;let h='';if(r&&r.status==='menunggu')h=`<div class="mu">⏳ Revisi menunggu ACC SPV: ${R(r.dari.total)} → <b>${R(r.ke.total)}</b></div>`;else if(r&&r.status==='ditolak')h=`<div class="mu" style="color:var(--m)">Revisi ditolak SPV${r.cat?': '+esc(r.cat):''}</div>`;if(n)h+=`<div class="mu">Direvisi ${n}× (ACC SPV)</div>`;return h}
-function rvOpen(id){const o=st.orders.find(x=>x.id===id);if(!o)return;if(o.rev&&o.rev.status==='menunggu')return toast('Masih ada pengajuan revisi yang menunggu ACC SPV');st.rv=id;st.rvD={items:rvItems(o)};window.scrollTo(0,0);render()}
+function rvOpen(id){const o=st.orders.find(x=>x.id===id);if(!o)return;if(o.rev&&o.rev.status==='menunggu')return toast('Masih ada pengajuan revisi yang menunggu ACC SPV');if(o.bt&&o.bt.status==='menunggu')return toast('Pembatalan order ini sedang menunggu ACC SPV');st.rv=id;st.rvD={items:rvItems(o)};window.scrollTo(0,0);render()}
 function rvCalc(){const O=st.rvD.items,items=[];O.forEach((c,i)=>{const x=$('rv_x'+i);if(x&&x.checked)return;const q=+v('rv_q'+i)||0,h=+v('rv_h'+i)||0;items.push({...c,nama:v('rv_n'+i).trim(),uk:v('rv_u'+i).trim(),qty:q,h:h,note:v('rv_t'+i).trim(),sub:+(q*h).toFixed(2)})});
  const nn=v('rv_nn').trim(),nq=+v('rv_nq')||0,nh=+v('rv_nh')||0;if(nn&&nq>0)items.push({nama:nn,sat:'',jenis:'Custom',uk:'',qty:nq,h:nh,note:'',sub:+(nq*nh).toFixed(2)});
  const sub=+items.reduce((s,c)=>s+c.sub,0).toFixed(2),disc=+v('rv_d')||0,design=+v('rv_g')||0;return {items,sub,disc,design,total:Math.max(0,sub+design-disc),dl:v('rv_dl')}}
@@ -700,8 +700,34 @@ function rvTolak(id){if(!rvCan())return toast('Hanya SPV yang dapat menolak revi
  const r=o.rev;r.status='ditolak';r.cat=c;(o.revLog=o.revLog||[]).push({n:Date.now(),status:'tolak',by:r.by,at:r.at,alasan:r.alasan,cat:c,dari:{total:r.dari.total,item:o.item},ke:{total:r.ke.total,item:''},acc:me()?me().nama:ROLES[st.role],at2:stamp()});
  toast('Revisi '+o.id+' ditolak');render()}
 function rvLines(L){return L.map(c=>`<div class="mu">${esc(c.nama)} · ${nf(c.qty)}${c.sat?' '+esc(c.sat):''} × ${R(c.h)} = ${R(c.sub)}</div>`).join('')}
+/* ===== Batal order: CS mengajukan, SPV (atau Admin) memberi ACC, seperti revisi ===== */
+const BT_ALASAN=['Pelanggan tidak jadi order','Salah input / dobel order','Harga atau waktu tidak cocok','Lainnya'];
+const btPend=o=>!!(o.bt&&o.bt.status==='menunggu');
+function btLine(o){const b=o.bt;if(!b)return '';if(b.status==='menunggu')return `<div class="mu">⏳ Pembatalan menunggu ACC SPV: ${esc(b.alasan)}</div>`;if(b.status==='ditolak')return `<div class="mu" style="color:var(--m)">Pembatalan ditolak SPV${b.cat?': '+esc(b.cat):''}</div>`;return ''}
+function btOpen(id){const o=st.orders.find(x=>x.id===id);if(!o)return;if(btPend(o))return toast('Pembatalan masih menunggu ACC SPV');if(o.rev&&o.rev.status==='menunggu')return toast('Masih ada revisi yang menunggu ACC SPV. Selesaikan dulu.');if((+o.step||0)>=3)return toast('Order sudah selesai diproduksi, tidak bisa dibatalkan');st.bt=id;window.scrollTo(0,0);render()}
+function btSend(){const o=st.orders.find(x=>x.id===st.bt);if(!o)return;const a=v('bt_a'),t=v('bt_t').trim();if(!a)return toast('Pilih alasan pembatalan');if(a==='Lainnya'&&t.length<5)return toast('Isi keterangan alasan');
+ o.bt={id:Date.now(),by:me()?me().nama:'CS',at:stamp(),alasan:a+(t?': '+t:''),status:'menunggu',step:+o.step||0,paid:+o.paid||0,total:+o.total||0};st.bt=null;toast('Pembatalan dikirim, menunggu ACC SPV');render()}
+function vBatal(){const o=st.orders.find(x=>x.id===st.bt);if(!o){st.bt=null;return ''}
+ return `<div class="row sp" style="margin-top:10px"><button class="g" onclick="st.bt=null;render()">Kembali</button></div><div class="card"><h2>Ajukan batal order ${esc(o.id)}</h2><p class="mu">${esc(o.cust)} · ${esc(o.item)} · total ${R(o.total)} · tahap ${STEP[o.step]||''}. Order baru dihapus setelah SPV atau Admin memberi ACC.</p>${o.paid>0?`<p style="color:var(--m)">Sudah ada pembayaran masuk ${R(o.paid)}. Pengembalian ke pelanggan akan dicek SPV.</p>`:''}
+ <label class="mu">Alasan pembatalan</label><select id="bt_a"><option value="">Pilih alasan</option>${BT_ALASAN.map(x=>`<option>${esc(x)}</option>`).join('')}</select>
+ <label class="mu">Keterangan (wajib bila memilih Lainnya)</label><input id="bt_t" placeholder="Contoh: pelanggan memilih vendor lain">
+ <button onclick="btSend()" style="margin-top:8px">Kirim ke SPV</button></div>`}
+function btAcc(id){if(!rvCan())return toast('Hanya SPV atau Admin yang dapat ACC pembatalan');const i=st.orders.findIndex(x=>x.id===id),o=st.orders[i];if(!o||!btPend(o))return;
+ const b=o.bt,u=me();if(o.mem){const m=st.members.find(x=>x.no===o.mem);if(m)m.poin=Math.max(0,m.poin-Math.floor(o.total/1000))}
+ const snap=JSON.parse(JSON.stringify(o));delete snap.bt;
+ st.batal=st.batal||[];st.batal.push({id:o.id,cust:o.cust,total:o.total,paid:o.paid,step:o.step,alasan:b.alasan,by:b.by,at:b.at,acc:u?u.nama:ROLES[st.role],at2:stamp(),n:Date.now(),o:snap});
+ st.orders.splice(i,1);toast('Order '+id+' dibatalkan dan dihapus');render()}
+function btTolak(id){if(!rvCan())return toast('Hanya SPV atau Admin yang dapat menolak pembatalan');const o=st.orders.find(x=>x.id===id);if(!o||!btPend(o))return;const c=v('btc_'+id).trim();if(!c)return toast('Isi catatan alasan penolakan untuk CS');
+ o.bt.status='ditolak';o.bt.cat=c;o.bt.acc=me()?me().nama:ROLES[st.role];o.bt.at2=stamp();toast('Pembatalan '+id+' ditolak');render()}
+function btV(){if(!rvCan())return '';const P=st.orders.filter(btPend),H=(st.batal||[]).slice().sort((a,b)=>(b.n||0)-(a.n||0));
+ return `<div class="card"><h2>Pembatalan order menunggu ACC</h2><p class="mu">CS mengajukan bila pelanggan tidak jadi order. Setelah Anda ACC, order dihapus dari daftar dan dicatat di riwayat pembatalan.</p>${P.length?'':'<p class="mu">Tidak ada pengajuan pembatalan.</p>'}</div>`
+ +P.map(o=>{const b=o.bt,pm=o.mem?Math.floor(o.total/1000):0;return `<div class="card"><div class="row sp"><b>${esc(o.id)} · ${esc(o.cust)}</b><span class="tag">${STEP[o.step]||''}</span></div><div class="mu">Diajukan ${esc(b.by)} · ${esc(b.at)}</div><div class="mu">${esc(o.item)} · total ${R(o.total)} · dibayar ${R(o.paid)}</div><div style="margin-top:6px"><b>Alasan:</b> ${esc(b.alasan)}</div>
+ ${o.paid>0?`<div class="mu" style="color:var(--m)">Pembayaran masuk ${R(o.paid)} akan ikut terhapus dari laporan pemasukan. Pastikan sudah dikembalikan ke pelanggan sebelum ACC.</div>`:''}${o.spk?'<div class="mu" style="color:var(--m)">Order sudah punya SPK. Beri tahu tim produksi.</div>':''}${pm?`<div class="mu">Poin member dikurangi ${pm}.</div>`:''}
+ <input id="btc_${esc(o.id)}" placeholder="Catatan untuk CS (wajib bila ditolak)" style="margin-top:8px"><div class="row" style="margin-top:8px"><button onclick="btAcc('${esc(o.id)}')">ACC & hapus order</button><button class="g" onclick="btTolak('${esc(o.id)}')">Tolak</button></div></div>`}).join('')
+ +(H.length?`<div class="card"><h2>Riwayat pembatalan</h2>${H.slice(0,15).map(x=>`<div style="padding:6px 0;border-top:1px solid var(--bd)"><div class="row sp"><b>${esc(x.id)} · ${esc(x.cust)}</b>${tagS('Dibatalkan','var(--m)')}</div><div class="mu">${R(x.total)}${x.paid>0?' · sempat dibayar '+R(x.paid):''} · CS ${esc(x.by)} · ACC ${esc(x.acc)} · ${esc(x.at2)}</div><div class="mu">${esc(x.alasan)}</div></div>`).join('')}</div>`:'')}
+
 function rvV(){if(!rvCan())return '';const P=st.orders.filter(o=>o.rev&&o.rev.status==='menunggu'),H=[];st.orders.forEach(o=>(o.revLog||[]).forEach(l=>H.push({o,l})));H.sort((a,b)=>(b.l.n||0)-(a.l.n||0));
- return `<div class="card"><h2>Revisi order menunggu ACC</h2><p class="mu">CS mengajukan revisi bila ada salah input atau perubahan order. Order baru berubah setelah Anda ACC.</p>${P.length?'':'<p class="mu">Tidak ada pengajuan revisi.</p>'}</div>
+ return btV()+`<div class="card"><h2>Revisi order menunggu ACC</h2><p class="mu">CS mengajukan revisi bila ada salah input atau perubahan order. Order baru berubah setelah Anda ACC.</p>${P.length?'':'<p class="mu">Tidak ada pengajuan revisi.</p>'}</div>
 ${P.map(o=>{const r=o.rev,d=r.dari,k=r.ke,sel=k.total-o.paid,pm=o.mem?Math.floor(k.total/1000)-Math.floor(d.total/1000):0;return `<div class="card"><div class="row sp"><b>${esc(o.id)} · ${esc(o.cust)}</b><span class="tag">${STEP[o.step]||''}</span></div><div class="mu">Diajukan ${esc(r.by)} · ${esc(r.at)}</div><div style="margin-top:6px"><b>Alasan:</b> ${esc(r.alasan)}</div>
 <div style="margin-top:8px"><b>Sebelum</b></div>${rvLines(d.items)}<div class="mu">Design ${R(d.design)} · Diskon ${R(d.disc)} · Total <b>${R(d.total)}</b></div>
 <div style="margin-top:8px"><b>Sesudah</b></div>${rvLines(k.items)}<div class="mu">Design ${R(k.design)} · Diskon ${R(k.disc)} · Total <b>${R(k.total)}</b> (${k.total>=d.total?'+':'-'}${R(Math.abs(k.total-d.total))})</div>
@@ -711,7 +737,7 @@ ${sel<0?`<div class="mu" style="color:var(--m)">Pembayaran masuk ${R(o.paid)} me
 ${H.length?`<div class="card"><h2>Riwayat revisi</h2>${H.slice(0,15).map(x=>`<div style="padding:6px 0;border-top:1px solid var(--bd)"><div class="row sp"><b>${esc(x.o.id)} · ${esc(x.o.cust)}</b>${tagS(x.l.status==='acc'?'ACC':'Ditolak',x.l.status==='acc'?'var(--ok)':'var(--m)')}</div><div class="mu">${R(x.l.dari.total)} → ${R(x.l.ke.total)} · CS ${esc(x.l.by)} · ${esc(x.l.status==='acc'?'ACC':'ditolak')} ${esc(x.l.acc)} · ${esc(x.l.at2)}</div><div class="mu">${esc(x.l.alasan)}${x.l.cat?' · Catatan: '+esc(x.l.cat):''}</div></div>`).join('')}</div>`:''}`}
 function render(){
  let h;
- if(st.spkp)h=vSpkP();else if(st.spkOf)h=vSpkF();else if(st.trm)h=vTrm();else if(st.rv)h=vRev();else if(st.rc)h=vRcpt();else if(st.cust)h=vCust2();else if(st.chg)h=vChg();else if(st.pu)h=vPin();else if(st.pick)h=vPick();else if(!st.role)h=vLogin();else if(!st.absen)h=vAbsen();else{
+ if(st.spkp)h=vSpkP();else if(st.spkOf)h=vSpkF();else if(st.trm)h=vTrm();else if(st.rv)h=vRev();else if(st.bt)h=vBatal();else if(st.rc)h=vRcpt();else if(st.cust)h=vCust2();else if(st.chg)h=vChg();else if(st.pu)h=vPin();else if(st.pick)h=vPick();else if(!st.role)h=vLogin();else if(!st.absen)h=vAbsen();else{
   const r=st.role,tb=TABS[r];let body;if(r!=='mem')try{bdAuto()}catch(e){}
   if(r==='cs')body=bdCard()+[()=>csHadiah()+csOrder()+st.orders.filter(o=>(Number(o.step)||0)<1).slice(0,2).map(o=>orderCard(o,'view')).join(''),csTrack,csPiutang,csLaporan,csMember,csTarget,csImport,csTukar,bannerV,katV,csProd,broCard,panduanV][st.tab]();
   if(r==='prod')body=[prodQueue2,prodKurir2,prodExp,prodExpList,prodDone,prodLap,panduanV][st.tab]();if(r==='pack')body=st.tab===1?panduanV():prodPack();
@@ -787,8 +813,8 @@ ${b.backups.length?b.backups.map(x=>`<div class="row sp" style="padding:4px 0;bo
 
 /* ===== Admin: arsip data lama dan restore ===== */
 const AR=[['orders','Order lunas dan sudah diterima',12],['absensi','Absensi',6],['exp','Pengeluaran',12],['tasks','Tugas selesai',3],['reqs','Kode tukar poin selesai',6]],
- COLN={orders:'Order',members:'Member',exp:'Pengeluaran',users:'Pengguna',rewards:'Hadiah',reqs:'Kode tukar poin',mp:'Marketplace',vendors:'Vendor',tasks:'Tugas',kpi:'KPI',banners:'Banner',katalog:'Katalog',katset:'Pricelist',prods:'Produk reguler',absensi:'Absensi'};
-function nextId(){const m=st.orders.reduce((a,o)=>Math.max(a,+String(o.id).replace(/\D/g,'')||0),0);return 'CP-'+String(m+1).padStart(3,'0')}
+ COLN={orders:'Order',members:'Member',exp:'Pengeluaran',users:'Pengguna',rewards:'Hadiah',reqs:'Kode tukar poin',mp:'Marketplace',vendors:'Vendor',tasks:'Tugas',kpi:'KPI',banners:'Banner',katalog:'Katalog',katset:'Pricelist',prods:'Produk reguler',absensi:'Absensi',batal:'Order batal'};
+function nextId(){const m=st.orders.concat(st.batal||[]).reduce((a,o)=>Math.max(a,+String(o.id).replace(/\D/g,'')||0),0);return 'CP-'+String(m+1).padStart(3,'0')}
 function arCall(a,extra,done){if(!window.cpCall)return toast('Aktif setelah dashboard terhubung ke Google Sheet');if(st.arBusy)return;st.arBusy=true;st.arMsg='Memproses…';render();
  window.cpCall(Object.assign({action:a},extra||{})).then(r=>{if(r&&r.ok)done(r);else toast('Gagal: '+((r&&r.error)||'tidak diketahui'))}).catch(e=>toast('Gagal: '+String(e&&e.message||e))).then(()=>{st.arBusy=false;st.arMsg='';render()})}
 function arPrev(){arCall('arcprev',{m:st.arM},r=>{st.arPrev=r;st.arDone=null})}
@@ -1338,7 +1364,7 @@ ${grid([`<div>${tile('Omset',R(m.om),m.n+' order · '+m.kl+' klien')}${dlt(m.om,
 /* ----- Ringkasan cepat di tab Ringkasan SPV ----- */
 function tkAlert(){const B=tkBulan(),P=tkPiu(),t=tod(),late=st.orders.filter(o=>o.step<3&&o.dl&&o.dl<t).length,us=st.users.filter(u=>STAFF.includes(u.role)&&u.aktif),blm=us.filter(u=>!st.absensi.some(x=>x.uid===u.id&&x.d===t)).length,rs=st.orders.filter(o=>o.rate),
  k=(i,x)=>`<div onclick="tab(${i})" style="cursor:pointer">${x}</div>`;
- return `<div class="card"><h2>Perhatian SPV hari ini</h2><p class="mu">Ketuk kotak untuk membuka rinciannya.</p>${grid([k(1,tile('Omset bulan ini',Math.round(tg('tOm')>0?B.om/tg('tOm')*100:0)+'%','Jalur '+Math.round(B.pace)+'%')),k(1,tile('Laba bulan ini',R(B.laba),'Target '+R(tg('tLaba')))),k(1,tile('Piutang customer',R(P.tot),P.l.length+' order')),k(3,tile('Deadline terlambat',late)),k(2,tile('Belum absen hari ini',blm,'dari '+us.length+' karyawan')),k(3,tile('Rating pelayanan',rs.length?'★ '+(sum(rs,o=>o.rate.svc)/rs.length).toFixed(1):'-','Target ★ '+tg('tRating'))),k(TABS.spv.indexOf('Revisi order'),tile('Revisi order menunggu ACC',rvPend()))])}</div>`}
+ return `<div class="card"><h2>Perhatian SPV hari ini</h2><p class="mu">Ketuk kotak untuk membuka rinciannya.</p>${grid([k(1,tile('Omset bulan ini',Math.round(tg('tOm')>0?B.om/tg('tOm')*100:0)+'%','Jalur '+Math.round(B.pace)+'%')),k(1,tile('Laba bulan ini',R(B.laba),'Target '+R(tg('tLaba')))),k(1,tile('Piutang customer',R(P.tot),P.l.length+' order')),k(3,tile('Deadline terlambat',late)),k(2,tile('Belum absen hari ini',blm,'dari '+us.length+' karyawan')),k(3,tile('Rating pelayanan',rs.length?'★ '+(sum(rs,o=>o.rate.svc)/rs.length).toFixed(1):'-','Target ★ '+tg('tRating'))),k(TABS.spv.indexOf('Revisi order'),tile('Revisi & batal order menunggu ACC',rvPend()))])}</div>`}
 /* ===== Panjang x lebar (banner, kain meteran) ===== */
 function dimQ(){const p=+v('f_p'),l=+v('f_l'),n=+v('f_q')||1;return p>0&&l>0?{p,l,n,luas:+(p*l*n).toFixed(4)}:null}
 function priceAuto(){const d=dimQ(),el=$('f_luas');if(el)el.textContent=d?`Luas ${nf(d.p)} × ${nf(d.l)} m × ${nf(d.n)} = ${nf(d.luas)} m²`:'';if(v('f_jenis')==='Custom'||!$('f_prod'))return;const p=st.prods.find(x=>x.id===v('f_prod')),q=(p&&p.sat==='m²')?(d?d.luas:0):(+v('f_q')||0);if(p&&q){const h=hargaGr(p,q);$('f_hs').value=nf(h);$('f_hg').textContent='Harga grosir '+R(h)+' / '+p.sat+(p.sat==='m²'?' (total luas '+nf(q)+' m²)':'')}else if($('f_hg'))$('f_hg').textContent=p&&p.sat==='m²'?'Isi panjang & lebar (m)':''}
@@ -1488,7 +1514,7 @@ function pubRate(id,svc,note){try{if(CP_API_URL)fetch(CP_API_URL,{method:'POST',
 
 if(location.hash==='#staf'||/[?&]staf(=|&|$)/.test(location.search))showDash();
 function startSync(){
-const API=window.CP_API_URL||'',KEYS=['orders','members','exp','users','rewards','reqs','mp','vendors','tasks','kpi','banners','katalog','katset','prods','absensi'],NAMES=KEYS.concat(['poinProd','baseOmset','baseKlien','cfg']);
+const API=window.CP_API_URL||'',KEYS=['orders','members','exp','users','rewards','reqs','mp','vendors','tasks','kpi','banners','katalog','katset','prods','absensi','batal'],NAMES=KEYS.concat(['poinProd','baseOmset','baseKlien','cfg']);
 const C=v=>JSON.stringify(v,(k,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.keys(x).sort().reduce((a,y)=>(a[y]=x[y],a),{}):x);
 const gate=$('gate'),gm=$('gm'),gk=$('gk'),gb=$('gb'),stat=t=>{$('syncs').textContent=t};
 let last={},ver='',key='',ok=false,busy=false,dirty=false,timer,cached=null;
