@@ -730,7 +730,7 @@ function iplAuto(){const c=iplCfg();if(!c||!c.on||!c.mulai)return;const cur=tod(
   ym=iplNext(ym)}}
 function iplSave(){const c=iplCfg(),first=!c||!c.hq,hq=v('ip_hq').trim();
  if(first){if(hq.length<4)return toast('Kode HQ minimal 4 karakter')}else if(hq!==c.hq)return toast('Kode HQ salah');
- const t=Math.round(+v('ip_t')||0),p=+String(v('ip_p')).replace(',','.')||0,j=Math.round(+v('ip_j')||0),nh=v('ip_nh').trim();
+ const t=Math.round(+v('ip_t')||0),p=+String(v('ip_p')).replace(',','.')||0,j=Math.round(+v('ip_j')||0),nh=($('ip_nh')?v('ip_nh'):'').trim();
  if(t<0||p<0||(t===0&&p===0))return toast('Isi nominal tetap atau persen omset');if(p>20)return toast('Persen omset terlalu besar. Periksa lagi (contoh 0,2)');if(j<1||j>28)return toast('Tanggal jatuh tempo 1 sampai 28');
  if(!first&&nh&&nh.length<4)return toast('Kode HQ baru minimal 4 karakter');
  st.cfg.ipl=Object.assign({},c||{},{tetap:t,persen:p,jt:j,on:true,mulai:(c&&c.mulai)||tod().slice(0,7),hq:first?hq:(nh||c.hq)});
@@ -1699,7 +1699,7 @@ key?connect():ask('Masukkan kunci staf dari pemilik');
 <script>
 
 (function(){
-var API=window.CP_API_URL||'';
+var API=window.CP_API_URL||'https://script.google.com/macros/s/AKfycbwz4fdB1jv4iY5g-WEL343wIYt-hxUY-LmKvUTih7-OawrJtuAVUIMiODzQgn_JZ6tNmQ/exec';
 var STEP=['Ternota','Proses desain','Antrian produksi','Selesai','Diterima'];
 var NOTE=['Pesanan tercatat dan invoice dikirim.','Tim desain menyiapkan tampilan untuk Anda setujui.','Desain disetujui, pesanan masuk antrean cetak.','Pesanan siap. Tunjukkan kode unik di nota saat menerima barang.','Barang sudah diterima. Terima kasih sudah memesan!'];
 var DEMO={'CP-001':{id:'CP-001',item:'Paperbag custom 500 pcs',step:2},'CP-002':{id:'CP-002',item:'Undangan 200 pcs',step:1},'CP-003':{id:'CP-003',item:'Stiker label 1000 pcs',step:3,k:'K4821'}};
